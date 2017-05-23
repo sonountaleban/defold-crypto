@@ -1,0 +1,25 @@
+name: "Crypto"
+
+platforms:
+    x86_64-osx:
+        context:
+            frameworks: []
+            flags:      ["-w"]
+            linkFlags:  ["-w"]
+            libs:       []
+            
+    arm64-ios:
+        context:
+            frameworks: []
+            flags:      ["-w"]
+            linkFlags:  ["-w"]
+            libs:       []
+             
+    armv7-ios:
+        context:
+            frameworks: []
+            flags:      ["-w"]
+            linkFlags:  ["-w"]
+            libs:       []
+  
+          
