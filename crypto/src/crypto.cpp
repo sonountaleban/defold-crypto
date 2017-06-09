@@ -3,6 +3,7 @@
 //#include <lua.h>
 //#include <lauxlib.h>
 #include "sha2.h"
+#include "aes.h"
 
 #define LIB_NAME "Crypto"
 #define MODULE_NAME "crypto"
@@ -126,16 +127,108 @@ static int sha512hex(lua_State *L) {
 	return 1;
 }
 
+static int aes128ecbencrypt(lua_State *L) {
+    size_t linput;
+    size_t lkey;
+    const char *sinput = luaL_checklstring(L, 1, &linput);
+    const char *skey = luaL_checklstring(L, 2, &lkey);
+    
+    luaL_argcheck(L, linput == 16, 1, "length of input must be 16");
+    luaL_argcheck(L, lkey == 16, 2, "length of key must be 16");
+    
+    char output[16];
+    
+    AES128_ECB_encrypt((const uint8_t *)sinput, (const uint8_t *)skey, (uint8_t *)output);
+  
+    lua_pushlstring(L, output, 16);
+    
+    return 1;
+}
+
+static int aes128ecbdecrypt(lua_State *L) {
+    size_t linput;
+    size_t lkey;
+    const char *sinput = luaL_checklstring(L, 1, &linput);
+    const char *skey = luaL_checklstring(L, 2, &lkey);
+    
+    luaL_argcheck(L, linput == 16, 1, "length of input must be 16");
+    luaL_argcheck(L, lkey == 16, 2, "length of key must be 16");
+    
+    char output[16];
+    
+    AES128_ECB_decrypt((const uint8_t *)sinput, (const uint8_t *)skey, (uint8_t *)output);
+    
+    lua_pushlstring(L, output, 16);
+    
+    return 1;
+}
+
+static int aes128cbcencryptbuffer(lua_State *L) {
+    size_t linput;
+    size_t lkey;
+    size_t liv;
+    const char *sinput = luaL_checklstring(L, 1, &linput);
+    const char *skey = luaL_checklstring(L, 2, &lkey);
+    const char *siv = luaL_checklstring(L, 3, &liv);
+    
+    luaL_argcheck(L, linput % 16 == 0, 1, "length of input must be multiple of 16");
+    luaL_argcheck(L, lkey == 16, 2, "length of key must be 16");
+    luaL_argcheck(L, liv == 16, 3, "length of iv must be 16");
+    
+    char *newinput = (char *)malloc(linput);
+    char *output = (char *)malloc(linput);
+    
+    memcpy(newinput, sinput, linput);
+
+    AES128_CBC_encrypt_buffer((uint8_t *)output, (uint8_t *)newinput, (uint32_t)linput, (const uint8_t *)skey, (const uint8_t *)siv);
+    
+    lua_pushlstring(L, output, linput);
+    
+    free(newinput);
+    free(output);
+    
+    return 1;
+}
+
+static int aes128cbcdecryptbuffer(lua_State *L) {
+    size_t linput;
+    size_t lkey;
+    size_t liv;
+    const char *sinput = luaL_checklstring(L, 1, &linput);
+    const char *skey = luaL_checklstring(L, 2, &lkey);
+    const char *siv = luaL_checklstring(L, 3, &liv);
+    
+    luaL_argcheck(L, linput % 16 == 0, 1, "length of input must be multiple of 16");
+    luaL_argcheck(L, lkey == 16, 2, "length of key must be 16");
+    luaL_argcheck(L, liv == 16, 3, "length of iv must be 16");
+    
+    char *output = (char *)malloc(linput);
+    
+    AES128_CBC_decrypt_buffer((uint8_t *)output, (uint8_t *)sinput, (uint32_t)linput, (const uint8_t *)skey, (const uint8_t *)siv);
+    
+    lua_pushlstring(L, output, linput);
+    
+    free(output);
+    
+    return 1;
+}
+
 /*
 ** Assumes the table is on top of the stack.
 */
-static void set_info (lua_State *L) {
+static void set_info1 (lua_State *L) {
 	lua_pushliteral (L, "_VERSION");
 	lua_pushliteral (L, "sha2 0.1.0");
 	lua_settable (L, -3);
 }
 
-static struct luaL_reg reg[] = {
+static void set_info2 (lua_State *L) {
+    lua_pushliteral (L, "_VERSION");
+    lua_pushliteral (L, "aes128 0.1.0");
+    lua_settable (L, -3);
+}
+
+static struct luaL_reg reg1[] = {
 	{"exor", ex_or},
 	{"sha256", sha256},
 	{"sha256hex", sha256hex},
@@ -143,13 +236,27 @@ static struct luaL_reg reg[] = {
 	{"sha384hex", sha384hex},
 	{"sha512", sha512},
 	{"sha512hex", sha512hex},
-	{NULL, NULL}
+    {NULL, NULL}
+};
+
+static struct luaL_reg reg2[] = {
+    {"aes128ecbencrypt", aes128ecbencrypt},
+    {"aes128ecbdecrypt", aes128ecbdecrypt},
+    {"aes128cbcencryptbuffer", aes128cbcencryptbuffer},
+    {"aes128cbcdecryptbuffer", aes128cbcdecryptbuffer},
+    {NULL, NULL}
 };
 
 int luaopen_sha2(lua_State *L) {
-	luaL_openlib(L, "sha2", reg, 0);
-	set_info (L);
+	luaL_openlib(L, "sha2", reg1, 0);
+	set_info1 (L);
 	return 1;
+}
+
+int luaopen_aes128(lua_State *L) {
+    luaL_openlib(L, "aes128", reg2, 0);
+    set_info2 (L);
+    return 1;
 }
 
 static void LuaInit(lua_State* L)
@@ -157,9 +264,12 @@ static void LuaInit(lua_State* L)
     int top = lua_gettop(L);
     
     luaopen_sha2(L);
-    
     lua_pop(L, 1);
+    assert(top == lua_gettop(L));
     
+    top = lua_gettop(L);
+    luaopen_aes128(L);
+    lua_pop(L, 1);
     assert(top == lua_gettop(L));
 }
 

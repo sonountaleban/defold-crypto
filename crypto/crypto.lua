@@ -1,10 +1,4 @@
---[[
-	HMAC implementation
-	http://tools.ietf.org/html/rfc2104
-	http://en.wikipedia.org/wiki/HMAC
---]]
-
-local crypto = {md4 = 0, md5 = 1, sha1 = 2, sha224 = 3, sha256 = 4, sha384 = 5, sha512 = 6}
+local crypto = {md4 = 0, md5 = 1, sha1 = 2, sha224 = 3, sha256 = 4, sha384 = 5, sha512 = 6, aes128ecb = 7, aes128cbc = 8}
 
 local function bintohex(s)
 	return (s:gsub('(.)', function(c)
@@ -12,6 +6,7 @@ local function bintohex(s)
   	end))
 end 
 
+-- supported algorithms: sha256, sha384 and sha512
 crypto.digest = function(algorithm, data, raw)
 	local func
 	
@@ -40,6 +35,7 @@ crypto.digest = function(algorithm, data, raw)
 	return func(data)
 end
 
+-- supported algorithms: sha256, sha384 and sha512
 crypto.hmac = function(algorithm, data, key, raw)
 	local hash
 	local blocksize
@@ -75,6 +71,86 @@ crypto.hmac = function(algorithm, data, key, raw)
     end
     
     return ret
+end
+
+-- supported cyphers: aes128ecb and aes128cbc
+crypto.encrypt = function(cipher, input, key, iv)
+	local output = ""
+	local b = 1
+	
+	if cipher == crypto.aes128ecb then
+		if #input % 16 ~= 0 then
+			input = input .. string.rep('\0', 16 - #input % 16)	
+		end
+		
+		if #key < 16 then
+			key = key .. string.rep('\0', 16 - #key)	
+		elseif #key > 16 then
+			key = string.sub(key, 1, 16)
+		end
+		
+		for a = 1, #input / 16 do
+			output = output .. aes128.aes128ecbencrypt(string.sub(input, b, b + 15), key)
+			
+			b = b + 16
+		end
+	elseif cipher == crypto.aes128cbc then
+		if #input % 16 ~= 0 then
+			input = input .. string.rep('\0', 16 - #input % 16)	
+		end
+		
+		if #key < 16 then
+			key = key .. string.rep('\0', 16 - #key)	
+		elseif #key > 16 then
+			key = string.sub(key, 1, 16)
+		end
+		
+		if #iv < 16 then
+			iv = iv .. string.rep('\0', 16 - #iv)	
+		elseif #iv > 16 then
+			iv = string.sub(iv, 1, 16)
+		end
+		
+		output = aes128.aes128cbcencryptbuffer(input, key, iv)
+	end
+	
+	return output
+end
+
+-- supported cyphers: aes128ecb and aes128cbc
+crypto.decrypt = function(cipher, input, key, iv)
+	local output = ""
+	local b = 1
+	
+	if cipher == crypto.aes128ecb then
+		if #key < 16 then
+			key = key .. string.rep('\0', 16 - #key)	
+		elseif #key > 16 then
+			key = string.sub(key, 1, 16)
+		end
+		
+		for a = 1, #input / 16 do
+			output = output .. aes128.aes128ecbdecrypt(string.sub(input, b, b + 15), key)
+			
+			b = b + 16
+		end
+	elseif cipher == crypto.aes128cbc then
+		if #key < 16 then
+			key = key .. string.rep('\0', 16 - #key)	
+		elseif #key > 16 then
+			key = string.sub(key, 1, 16)
+		end
+		
+		if #iv < 16 then
+			iv = iv .. string.rep('\0', 16 - #iv)	
+		elseif #iv > 16 then
+			iv = string.sub(iv, 1, 16)
+		end
+		
+		output = aes128.aes128cbcdecryptbuffer(input, key, iv)
+	end
+	
+	return output
 end
 
 return crypto

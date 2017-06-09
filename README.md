@@ -1,5 +1,5 @@
 # Crypto
-This is the Crypto module for the [Defold game engine](http://www.defold.com) and it supports digests and hmac computations for SHA-256, 384 and 512. It is based on this [Lua binding](https://code.google.com/archive/p/sha2) and is source-code compatible with the Crypto library of Corona SDK.
+This is the Crypto module for the [Defold game engine](http://www.defold.com) and it supports digests and hmac computations for SHA-256, 384 and 512. It is based on this [Lua binding](https://code.google.com/archive/p/sha2) and is source-code compatible with the Crypto library of Corona SDK. There is also a basic support for AES128 ECB and CBC encryption algorithms ([tiny-AES128-C](https://github.com/kokke/tiny-AES128-C)).
 
 ## Installation
 You can use Crypto in your own project by adding this project as a [Defold library dependency](http://www.defold.com/manuals/libraries/). Open your game.project file and in the dependencies field under project add:
@@ -23,6 +23,17 @@ assert(crypto.hmac(crypto.sha384, "This is a test!!!", "This is a key??") ==
 	
 assert(crypto.hmac(crypto.sha512, "This is a test!!!", "This is a key??") ==
 	"01ecc8872d6809c78a98caac7b6d0a26a1373e3a00500cda497ad546d4a4655192f00c1909a1dc419befb3051b17b50c45e1d5f5ad54520c88eda327c1c12f51")
+
+-- input must be a string with length multiple of 16
+-- key must be a string with length of 16
+result = crypto.encrypt(crypto.aes128ecb, input, key)
+result = crypto.decrypt(crypto.aes128ecb, input, key)
+
+-- input must be a string with length multiple of 16
+-- key and iv must be strings with length of 16
+result = crypto.encrypt(crypto.aes128cbc, input, key, iv)
+result = crypto.decrypt(crypto.aes128cbc, input, key, iv)
+
 ```
 
 ## Limitations
